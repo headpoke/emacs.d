@@ -1,0 +1,671 @@
+#+TITLE: knubemacs
+#+AUTHOR: Knut Berg
+#+OPTIONS: toc:nil num:nil
+* Changelog
+<2020-05-10 Sun> Started on building my own «spacemacs» with ~evil~ and ~general.el~. Expect things to go awfully awry.
+
+* Userinfo
+Personal file with ~user-full-name~, ~user-mail-address~, ~calendar-latitude~,
+~calendar-longitude~, ~calendar-location-name~, favorite flavor of ice cream
+etc.
+#+begin_src emacs-lisp
+  (lambda ()
+    (setq-local userinfo (concat user-emacs-directory "userinfo.el"))
+    (when (file-exists-p userinfo)
+      (load-file userinfo)))
+#+end_src
+
+* Quality of life stuff
+[[https://github.com/jwiegley/use-package][use-package]] and auto-compile are already loaded in ~init.el~
+
+** no-littering
+Keep ~.emacs.d/~ nice and clean. https://github.com/emacscollective/no-littering
+#+begin_src emacs-lisp
+(use-package no-littering
+  :config
+  ;; remove littering from recent files on dashboard
+  (require 'recentf)
+  (add-to-list 'recentf-exclude no-littering-var-directory)
+  (add-to-list 'recentf-exclude no-littering-etc-directory)
+
+  )
+#+end_src
+
+** killring
+We have buttloads of memory, might as well use it.
+#+begin_src emacs-lisp
+  (setq global-mark-ring-max 500
+        mark-ring-max 500
+        kill-ring-max 500)
+#+end_src
+
+** osx
+cmd is meta, free up option for various special characters, fn is hyper.
+
+[[https://github.com/emacsorphanage/osx-trash][osx-trash]] lets us delete by moving to trash.
+
+When opening files from Finder, open them in the active frame instead of a new
+one.
+#+begin_src emacs-lisp
+(when *is-a-mac*
+  (setq mac-command-modifier 'meta)
+  (setq mac-option-modifier nil)
+  (setq mac-function-modifier 'hyper))
+
+(use-package osx-trash
+  :if *is-a-mac*
+  :config
+  (osx-trash-setup)
+  (setq-default delete-by-moving-to-trash t))
+
+(setq ns-pop-up-frames nil)
+#+end_src
+
+** [[https://github.com/purcell/exec-path-from-shell][exec-path-from-shell]]
+env and path variables is some voodoo magic stuff that never works the way you'd
+like.
+#+begin_src emacs-lisp
+(use-package exec-path-from-shell
+  :config
+  (exec-path-from-shell-initialize)
+  (exec-path-from-shell-copy-envs '("LANG"
+                                    "LC_ALL"
+                                    "GPG_AGENT_INFO"
+                                    "SSH_AUTH_SOCK")))
+#+end_src
+
+** utf-8
+Not sure if I need all these...
+#+begin_src emacs-lisp
+(setq utf-translate-cjk-mode nil) ; disable CJK coding/encoding
+(set-language-environment 'utf-8)
+;;(set-keyboard-coding-system 'utf-8-mac) ; For old Carbon emacs on OS X only
+(setq locale-coding-system 'utf-8)
+(set-default-coding-systems 'utf-8)
+(set-terminal-coding-system 'utf-8)
+(set-selection-coding-system 'utf-8)
+(prefer-coding-system 'utf-8)
+#+end_src
+
+** mouse
+Default emacs mouse scrolling is terrible. This makes it better.
+
+Middle click yanks from there the text cursor is instead of mouse pointer.
+
+#+begin_src emacs-lisp
+(setq scroll-step 1
+      scroll-conservatively 101
+      scroll-preserve-screen-position 'always
+      next-screen-context-lines 5
+      debugger-stack-frame-as-list t
+      mouse-wheel-follow-mouse t
+      mouse-wheel-scroll-amount '(1 ((shift) . 1))
+      mouse-wheel-progressive-speed nil)
+
+(setq mouse-yank-at-point t)
+#+end_src
+
+** maximized
+Start maximized. Fullscreen fix for os. Toggle fullscreen with ~C-x T f~
+#+begin_src emacs-lisp
+(add-hook 'emacs-startup-hook (lambda () (toggle-frame-maximized)))
+(when *is-a-mac* (setq ns-use-native-fullscreen nil))
+#+end_src
+
+** miscellaneous
+Stuff that makes life better. Most of this is cherry picked from
+[[https://github.com/hrs/sensible-defaults.el][sensible-defaults.el]] and [[https://github.com/technomancy/better-defaults][better-defaults]]
+
+#+begin_src emacs-lisp
+;; In osx one might as well show the menu bar. Hide the rest
+(unless (eq window-system 'ns)
+  (menu-bar-mode -1))
+(when (fboundp 'tool-bar-mode)
+  (tool-bar-mode -1))
+(when (fboundp 'scroll-bar-mode)
+  (scroll-bar-mode -1))
+(when (fboundp 'horizontal-scroll-bar-mode)
+  (horizontal-scroll-bar-mode -1))
+
+;; Default indent is two spaces
+(setq-default indent-tabs-mode nil
+              tab-width 2)
+
+;; https://www.emacswiki.org/emacs/SavePlace
+(save-place-mode 1)
+
+;; Make users home directory the default
+(setq default-directory "~/")
+
+;; Selected text is replaced on input
+(delete-selection-mode t)
+
+;; Clean up whitespace on save
+(add-hook 'before-save-hook 'delete-trailing-whitespace)
+
+;; CamelCaseSubWords are treated as seperate words
+(add-hook 'prog-mode-hook 'subword-mode)
+
+;; Follow symlinks when opening files
+(setq vc-follow-symlinks t)
+
+;; Default emacs treates sentences to have two spaces after .
+(setq sentence-end-double-space nil)
+
+;; Offer to create directories on save
+(add-hook 'before-save-hook
+          (lambda ()
+            (when buffer-file-name
+              (let ((dir (file-name-directory buffer-file-name)))
+                (when (and (not (file-exists-p dir))
+                           (y-or-n-p (format "Directory %s does not exist. Create it?" dir)))
+                  (make-directory dir t))))))
+
+;; Files should end with newline
+(setq require-final-newline t)
+
+;; Confirm closing emacs. Shorten all confirms. No dialog boxes.
+(setq confirm-kill-emacs 'y-or-n-p
+      use-dialog-box nil)
+(fset 'yes-or-no-p 'y-or-n-p)
+
+
+;; Less cluttered startup
+(setq inhibit-startup-message nil
+      initial-scratch-message nil)
+
+;; Sensible size units with dired
+(setq-default dired-listing-switches "-alh")
+
+;; Syntqx highlighting always
+(global-font-lock-mode t)
+
+;; Refresh buffer when files change
+(global-auto-revert-mode t)
+
+;; fill column should always be 80
+(setq-default fill-column 80)
+
+;; Save backups and auto-saved stuff to /tmp
+(setq backup-directory-alist
+      `((".*" . ,temporary-file-directory)))
+(setq auto-save-file-name-transforms
+      `((".*" ,temporary-file-directory t)))
+
+;; Make buffer names unique
+(require 'uniquify)
+(setq uniquify-buffer-name-style 'forward)
+
+;; Sensible titlebar with file name and path
+(setq-default frame-title-format "%b (%f)")
+
+;; Better looking titlebar
+(when *is-a-mac*
+  (add-to-list 'default-frame-alist '(ns-appearance . dark)) ;; {light, dark}
+  (add-to-list 'default-frame-alist '(ns-transparent-titlebar . t)))
+
+;; global-eldoc-mode might cause issues outside of emacs-lisp?
+(global-eldoc-mode -1)
+(add-hook 'emacs-lisp-mode-hook #'eldoc-mode)
+(setq eldoc-idle-delay 0.4)
+
+;; C-x C-u and C-x C-d is a bit annoying. Can be re-enabled with
+;; M-x enable-command, but why?
+(put 'upcase-region 'disabled t)
+(put 'downcase-region 'disabled t)
+
+;; Echoing keystrokes (M-x, C-c etc) with less time, makes it feel more 'snappy'
+(setq echo-keystrokes 0.1)
+
+;; Make emacs help window selectable, close with q
+(setq help-window-select t)
+
+;; Blinking cursor is annoying
+(blink-cursor-mode 0)
+#+end_src
+
+* general.el
+** [[https://github.com/justbur/emacs-which-key][which-key]]
+Display keybindings. Quite wonderful. Not a part of general.el, but might as
+well load it at this point.
+#+begin_src emacs-lisp
+(use-package which-key
+  :diminish
+  :config
+  (setq which-key-idle-delay 0.3
+        which-key-separator " "
+        which-key-prefix-prefix "+")
+  (which-key-mode))
+#+end_src
+
+** [[https://github.com/noctuid/general.el][general.el]]
+My preferred choice for binding keys. Works well with ~evil~. All binds are at
+the end of this file.
+#+begin_src emacs-lisp
+(use-package general)
+#+end_src
+
+* Evil
+I am by no means one of those hardcore ex-vimmers, but modal editing is nifty.
+This section is a work in progress and will incrementally grow.
+** [[https://github.com/emacs-evil/evil][evil]]
+#+begin_src emacs-lisp
+(use-package evil
+  :ensure t
+  :init
+  (setq evil-want-keybinding nil)
+  :config
+  (evil-mode 1))
+#+end_src
+
+** [[https://github.com/emacs-evil/evil-collection][evil-collection]]
+#+begin_src emacs-lisp
+(use-package evil-collection
+  :after evil
+  :ensure t
+  :config
+  (evil-collection-init))
+#+end_src
+
+** [[https://github.com/Somelauw/evil-org-mode][evil-org-mode]]
+#+begin_src emacs-lisp
+(use-package evil-org
+  :ensure t
+  :after org
+  :config
+  (add-hook 'org-mode-hook 'evil-org-mode)
+  (add-hook 'evil-org-mode-hook
+            (lambda ()
+              (evil-org-set-key-theme)))
+  (require 'evil-org-agenda)
+  (evil-org-agenda-set-keys))
+#+end_src
+
+* Visual stuff
+Font, theme, modeline etc.
+** Iosevka font
+I like [[https://github.com/adobe-fonts/source-code-pro][Source Code Pro]], but I'm currently trying out [[https://github.com/be5invis/Iosevka][Iosevka]] for now. Seems
+good.
+#+begin_src emacs-lisp
+(set-face-attribute 'default nil :font "Iosevka Term" :height 160)
+;;(setq-default line-spacing 3)
+#+end_src
+
+** all-the-icons
+https://github.com/domtronn/all-the-icons.el
+#+begin_src emacs-lisp
+(use-package all-the-icons)
+#+end_src
+Remember to install the fonts with M-x all-the-icons-install-fonts
+
+** [[https://github.com/purcell/color-theme-sanityinc-solarized][solarized theme]]
+#+begin_src emacs-lisp
+(use-package color-theme-sanityinc-solarized
+  :config
+  (color-theme-sanityinc-solarized-dark))
+#+end_src
+
+** [[https://github.com/seagle0128/doom-modeline][doom-modeline]]
+#+begin_src emacs-lisp
+(use-package doom-modeline
+  :ensure t
+  :init (doom-modeline-mode 1))
+#+end_src
+
+** parens
+https://github.com/Fuco1/smartparens and https://github.com/Fanael/rainbow-delimiters
+#+begin_src emacs-lisp
+;; Always show matching parens
+(show-paren-mode t)
+(setq show-paren-delay 0.0)
+
+(use-package smartparens
+  :config
+  (smartparens-global-mode t)
+  (require 'smartparens-config)
+  (show-smartparens-global-mode t))
+
+(use-package rainbow-delimiters
+  :ghook 'prog-mode-hook)
+;; rainbow-delimiters hook is a bit iffy with latex-mode, does ghook fix that?
+#+end_src
+
+** hl-fill-column
+If possible one should break lines at 80.
+#+begin_src emacs-lisp
+(setq-default fill-column 80
+              column-number-mode t)
+
+(use-package hl-fill-column)
+#+end_src
+
+* Navigation
+avy, ace? TODO
+
+* Completion
+TODO: Lots. deadgrep looks good, amx perhaps?
+** Ivy
+With avy (maybe?), counsel, swiper [[https://github.com/abo-abo/]]
+
+#+begin_src emacs-lisp
+;; (use-package avy) ;; not sure if I want this or evil-snipe?
+(use-package ivy
+  :config
+  (ivy-mode 1)
+  (setq ivy-use-virtual-buffers t) ; show bookmarks and recent files in buffer list
+  (setq ivy-count-format "(%d/%d) ")
+  (setq enable-recursive-minibuffers t)
+  (setq ivy-re-builders-alist
+        '((swiper . ivy--regex-plus)
+          (t      . ivy--regex-fuzzy)))
+  (evil-collection-ivy-setup))
+
+(use-package counsel
+  :after (ivy company))
+
+(use-package swiper
+  :after (ivy))
+
+(general-define-key
+ "M-x" 'counsel-M-x
+ "\C-s" 'counsel-grep-or-swiper
+ ;; "C-;" 'avy-goto-char
+ ;; "C-:" 'avy-goto-char-2
+ "<f6>" 'ivy-resume
+ "C-S-o" 'counsel-rhythmbox)
+
+;; (general-define-key
+;;   :prefix "M-g"
+;;   "f" 'avy-goto-line
+;;   "w" 'avy-goto-word-1
+;;   "e" 'avy-goto-word-0)
+
+(general-define-key
+ :prefix "<f1>"
+ "f" 'counsel-describe-function
+ "v" 'counsel-describe-variable
+ "o" 'counsel-describe-symbol
+ "l" 'counsel-find-library)
+
+(general-define-key
+ :prefix "<f2>"
+ "i" 'counsel-info-lookup-symbol
+ "u" 'counsel-unicode-char)
+
+;; how to do this with general.el?
+(define-key minibuffer-local-map (kbd "C-r") 'counsel-minibuffer-history)
+
+
+(general-define-key
+ :prefix "C-c"
+ "g" 'counsel-git
+ "j" 'counsel-git-grep
+ "k" 'counsel-ag)
+ ;; "C-j" 'avy-resume)
+
+
+(general-define-key
+ :prefix "C-x"
+ "f" 'counsel-find-file
+ "b" 'counsel-switch-buffer
+ "l" 'counsel-locate)
+
+;; https://github.com/Yevgnen/ivy-rich
+(use-package ivy-rich
+  :after (ivy)
+  :config
+  (setq ivy-rich-path-style 'abbrev)
+  (ivy-rich-mode +1))
+#+end_src
+
+** [[https://github.com/raxod502/prescient.el][Prescient]]
+Prescient sorts and filters candidates, similar to ido and smex.
+#+begin_src emacs-lisp
+(use-package prescient
+  :config
+  (setq prescient-filter-method '(literal regexp initialism fuzzy))
+  (prescient-persist-mode +1))
+
+(use-package ivy-prescient
+  :after (prescient counsel)
+  :config
+  (setq ivy-prescient-sort-commands
+        '(:not swiper counsel-grep ivy-switch-buffer))
+  (setq ivy-prescient-retain-classic-highlighting t)
+  (ivy-prescient-mode +1))
+#+end_src
+
+** Projectile
+I have not gotten around to actually learning this, but here it is.
+[[https://github.com/bbatsov/projectile][https://github.com/bbatsov/projectile]]
+[[https://github.com/ericdanan/counsel-projectile][https://github.com/ericdanan/counsel-projectile]]
+#+begin_src emacs-lisp
+(use-package projectile
+  :config
+  (setq projectile-completion-system 'ivy)
+  (projectile-mode))
+(use-package counsel-projectile
+  :config
+  (counsel-projectile-mode))
+(general-define-key
+ :prefix "C-x"
+ "p" 'projectile-mode-map) ;; this no work?
+#+end_src
+
+* Code completion
+#+begin_src emacs-lisp
+(use-package company
+  :config
+  (setq company-begin-commands '(self-insert-command)
+        company-idle-delay 0.1
+        company-minimum-prefix-length 2
+        company-show-numbers t
+        company-tooltip-align-annotations 't)
+  (add-hook 'after-init-hook 'global-company-mode))
+
+(use-package company-prescient
+  :after
+  (prescient company)
+  :hook
+  (company-mode . company-prescient-mode)
+  :config
+  (setq prescient-save-file (concat user-emacs-directory "prescient-save.el"))
+  (prescient-persist-mode +1))
+
+
+(use-package yasnippet
+  :config
+  (setq yas-snippet-dirs '("~/.emacs.d/snippets/"))
+  (yas-global-mode 1))
+#+end_src
+
+* LaTeX
+** auctex and company
+TODO: Go through this, it adds a lot of time to emacs startup
+#+begin_src emacs-lisp
+(use-package tex-site
+  :ensure auctex
+  :diminish reftex-mode
+  :mode (("\\.tex\\'" . LaTeX-mode)
+         ("\\.xtx\\'" . LaTeX-mode))
+  :config
+  (setq-default TeX-master nil)
+  (setq TeX-auto-save t
+        TeX-parse-self t
+        reftex-plug-into-AUCTeX t
+        TeX-clean-confirm nil
+        TeX-PDF-mode t
+        TeX-save-query nil)
+
+  :hook
+  (LaTeX-mode . LaTeX-math-mode)
+  (LaTeX-mode . turn-on-reftex)
+  (LaTeX-mode . smartparens-mode)
+  (LaTeX-mode . TeX-fold-mode)
+  (LaTeX-mode . TeX-PDF-mode)
+  )
+
+(use-package auctex-latexmk
+  :config
+  (setq TeX-source-correlate-mode t
+        TeX-source-correlate-start-server t
+        auctex-latexmk-inherit-TeX-PDF-mode t
+        TeX-source-correlate-method 'synctex
+        ;; TeX-view-program-selection '((output-pdf "pdf-tools"))
+        ;; TeX-view-program-list '(("pdf-tools" "TeX-pdf-tools-sync-view"))
+        TeX-view-program-selection '((output-pdf "Skim"))
+        TeX-view-program-list '(("Skim" "/Applications/Skim.app/Contents/SharedSupport/displayline -b -g %n %o %b")) ;  -b shows the yellow line, -g is background
+        )
+  (add-hook 'TeX-mode-hook '(lambda () (setq TeX-command-default "LatexMk")))
+  (add-hook 'TeX-after-compilation-finished-functions #'TeX-revert-document-buffer)
+  (setq TeX-command-force "LatexMk")
+  (auctex-latexmk-setup)
+  )
+
+(use-package company-auctex
+  :config
+  (company-auctex-init))
+
+;; Not sure if I need this, but I leave it in for now
+;; (use-package cdlatex
+;;   :after (:any org-mode LaTeX-mode)
+;;   :hook
+;;   ((LaTeX-mode . turn-on-cdlatex)
+;;    (org-mode . turn-on-org-cdlatex)))
+
+(use-package company-math
+  :after (:any org-mode TeX-mode)
+  :config
+  (set-company-backend! 'org-mode 'company-math-symbols-latex)
+  (set-company-backend! 'TeX-mode 'company-math-symbols-latex)
+  (set-company-backend! 'org-mode 'company-latex-commands)
+  (set-company-backend! 'TeX-mode 'company-latex-commands)
+  (setq company-tooltip-align-annotations t)
+  (setq company-math-allow-latex-symbols-in-faces t))
+
+(use-package ivy-bibtex
+  :config
+  (setq reftex-default-bibliography '("~/Dropbox/org/bib/bibliografi.bib")
+        bibtex-completion-bibliography '("~/Dropbox/org/bib/bibliografi.bib")
+        bibtex-completion-library-path '("~/Dropbox/org/bib/bibtex-pdfs/")
+        bibtex-completion-notes-path "~/Dropbox/org/bib/notes.org"))
+#+end_src
+TODO: bibtex, probably go with ivy-bibtex?
+TODO: The completion stuff needs work...
+
+* Org
+#+begin_src emacs-lisp
+(use-package org
+  :ensure org-plus-contrib
+  :config
+  (require 'org-tempo)
+  (require 'ob-latex)
+  (require 'ob-emacs-lisp)
+  (setq org-startup-indented t         ;; indent sections
+        org-src-tab-acts-natively t    ;; tab works as in any major mode
+        org-src-preserve-indentation t
+        org-log-into-drawer t          ;; wtf is this?
+        org-src-fontify-natively t     ;; highlight code
+        org-log-done 'time             ;; add dates on completion of TODOs
+        org-support-shift-select t     ;; wtf is this?
+        org-startup-truncated nil
+        org-directory "~/Dropbox/org"
+        org-agenda-files '("~/Dropbox/org")
+        org-ellipsis " ➙"
+        org-src-window-setup 'current-window
+        org-latex-pdf-process (list "latexmk -shell-escape -bibtex -f -pdf %f"))
+  (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp")))
+
+(use-package org-bullets
+  :config
+  (add-hook 'org-mode-hook (lambda () (org-bullets-mode 1))))
+
+(use-package ox-pandoc)
+
+;; https://github.com/jkitchin/org-ref
+(use-package org-ref
+  :config
+  (setq org-ref-bibliography-notes "~/Dropbox/org/bib/notes.org"
+        org-ref-default-bibliography '("~/Dropbox/org/bib/bibliografi.bib")
+        org-ref-pdf-directory "~/Dropbox/org/bib/bibtex-pdfs/"
+        ))
+
+#+end_src
+
+TODO: Buttloads...
+
+* Unsorted apps
+** [[https://github.com/emacs-dashboard/emacs-dashboard][emacs-dashboard]]
+#+begin_src emacs-lisp
+(use-package dashboard
+  :config
+  (dashboard-setup-startup-hook)
+  (setq dashboard-startup-banner 'logo
+        dashboard-banner-logo-title "knubemacs"
+        dashboard-items '((recents  . 25)
+                          (bookmarks . 5)
+                          (projects . 5))
+        dashboard-set-footer nil))
+#+end_src
+* More general.el
+** Emacs keybindings
+#+begin_src emacs-lisp
+(general-define-key
+   "M-x" 'counsel-M-x)
+
+#+end_src
+
+** Evil keybindings
+#+begin_src emacs-lisp
+(general-define-key
+   :states '(normal visual)
+   "C-u" 'scroll-down-command
+   "C-d" 'scroll-up-command)
+#+end_src
+
+** SPC-leader bindings
+This is a work in progress, trying to move /from/ emacs keybindings to more
+/spacemacs/-like bindings is going to be a pain in the [[https://farscape.fandom.com/wiki/Mivonks][mivonks]], but my left hand
+will benefit in the long run. No more emacs pinky!
+
+#+begin_src emacs-lisp
+ (general-define-key
+   :states '(normal visual insert emacs)
+   :prefix "SPC"
+   :non-normal-prefix "M-SPC"
+   ;;"/"   'counsel-rg
+   ":"   'counsel-M-x
+   "TAB" 'toggle-buffers
+
+   "b" '(:ignore t :which-key "Buffers")
+   "bb"  'ivy-switch-buffer
+
+   "w" '(:ignore t :which-key "Window")
+   "wl"  'windmove-right
+   "wh"  'windmove-left
+   "wk"  'windmove-up
+   "wj"  'windmove-down
+   "w/"  'split-window-below
+   "w\\" 'split-window-right
+   "wx"  'delete-window
+
+   "s" '(:ignore t :which-key "Search")
+   "sl" 'ivy-resume
+   "ss" '(swiper :which-key "Swiper")
+   "sr" '(counsel-rg :which-key "Ripgrep")
+
+   "t" '(:ignore t :which-key "Toggles")
+   "tf" '(toggle-frame-fullscreen :which-key "Fullscreen")
+   "tr" '(rainbow-delimiters-mode :which-key "Rainbow delimiters")
+   "th" '(hl-fill-column-mode :which-key "Highlight fill column")
+   )
+#+end_src
+
+** Unbinds
+Various unbinds. Probably more to come.
+#+begin_src emacs-lisp
+(general-unbind
+  "s-p"      ; no one needs print
+  "C-x f"    ; set-fill-column is always 80
+  "C-x C-n") ; set-goal-column is just annoying
+#+end_src
