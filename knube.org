@@ -2,8 +2,7 @@
 ** Version and os check
    #+begin_src emacs-lisp
    (when (version< emacs-version "27")
-   (warn "Your Emacs might be too old -- This setup was made for emacs 27
-   or newer. Proceed with caution!"))
+   (warn "Your Emacs might be too old -- This setup was made for emacs 27 or newer. Proceed with caution!"))
    
    (defconst *is-a-mac* (eq system-type 'darwin))
 
@@ -70,7 +69,7 @@
    (auto-compile-on-load-mode)
    (auto-compile-on-save-mode)
    (setq auto-compile-display-buffer nil
-         auto-compile-mode-line-counter t)
+         auto-compile-mode-line-counter t))
    #+end_src
 
 ** no-littering
@@ -135,7 +134,7 @@
    (prefer-coding-system 'utf-8)
    #+end_src
 
-** mouse
+** Mouse scrolling
    Default emacs mouse scrolling is terrible. This makes it better. 
    #+begin_src emacs-lisp
    (setq scroll-step                     1
@@ -149,19 +148,39 @@
 	 mouse-yank-at-point             t)
 #+end_src
 
-** maximized
-   Start maximized
+** Start maximized
    #+begin_src emacs-lisp
    (add-hook 'emacs-startup-hook (lambda () (toggle-frame-maximized)))
    (when *is-a-mac* (setq ns-use-native-fullscreen nil))
    #+end_src
 
+* Visuals
+** Fonts
+   #+begin_src emacs-lisp
+   
+   #+end_src
+** Theme
+   https://github.com/kunalb/poet
+   #+begin_src emacs-lisp
+     (use-package poet-theme
+     :ensure t
+     :config
+     (load-theme 'poet))
+   #+end_src
 * ivy
 
-* keybindings
+* Keybindings
 
 * evil
 
+* LaTeX
 * org
-
-* latex
+#+begin_src emacs-lisp
+(setq org-src-window-setup 'other-window)
+(setq org-src-fontify-natively t)
+(setq org-src-tab-acts-natively t)
+(setq org-edit-src-content-indentation 0)
+(setq org-fontify-quote-and-verse-blocks t)
+(add-hook 'org-mode-hook (lambda () (auto-fill-mode)))
+(add-hook 'org-mode-hook 'visual-line-mode)
+#+end_src
