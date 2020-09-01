@@ -1,0 +1,478 @@
+#+PROPERTY: header-args :tangle yes
+* Startup
+** early-init.el
+emacs 27 introduced =early-init.el= which is run before =init.el=, package or
+any UI initialization takes place. It's *not a big deal* for most users, but it
+can improve startup times a bit.
+#+begin_src emacs-lisp :tangle early-init.el
+;;; early-init.el --- -*- lexical-binding: t -*-
+(defvar startup-file-name-handler-alist file-name-handler-alist)
+(setq gc-cons-threshold         most-positive-fixnum ; set to 64MB later
+      gc-cons-percentage        0.6                  ; set to 0.1 later
+      debug-on-error            t                    ; reset later
+      file-name-handler-alist   nil                  ; reset later
+      site-run-file             nil
+      package-enable-at-startup nil)
+(menu-bar-mode -1)
+(unless (and (display-graphic-p) (eq system-type 'darwin))
+  (push '(menu-bar-lines . 0) default-frame-alist))
+(push '(tool-bar-lines . 0) default-frame-alist)
+(push '(vertical-scroll-bars) default-frame-alist)
+
+(setq inhibit-startup-message t
+      inhibit-scratch-message t)
+#+end_src
+
+** Lexical binding
+#+begin_src emacs-lisp
+;;; init.el --- -*- lexical-binding: t -*-
+#+end_src
+   
+** custom file
+#+begin_src emacs-lisp
+(setq custom-file (concat user-emacs-directory "custom.el"))
+(load custom-file 'noerror)
+ #+end_src
+
+** User info
+Load personal file
+#+begin_src emacs-lisp
+(lambda ()
+  (setq-local userinfo (concat user-emacs-directory "userinfo.el"))
+  (when (file-exists-p userinfo)
+    (load-file userinfo)))
+#+end_src
+   
+Example file:
+#+begin_src emacs-lisp :tangle no
+;;; user-info.el --- -*- lexical-binding: t -*-
+(setq user-full-name         "John Doe"
+      user-mail-address      "john@doe.com"
+      calendar-latitude      00.000
+      calendar-longitude     00.000
+      calendar-location-name "City name, Country ")
+#+end_src
+
+** startup-hooks
+#+begin_src emacs-lisp
+(defvar knube-gc-cons-threshold (* 64 1024 1024)) ; increase if stuttering
+                                                  ; occurs, decrease if freezing
+                                                  ; occurs
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (setq gc-cons-threshold       knube-gc-cons-threshold
+                  gc-cons-percentage      0.1
+	          debug-on-error          nil
+                  file-name-handler-alist startup-file-name-handler-alist)
+            (makunbound 'startup-file-name-handler-alist)))
+#+end_src
+
+** Various constants
+#+begin_src emacs-lisp
+(defconst *is-a-mac* (eq system-type 'darwin))
+#+end_src
+
+** Version and and os checks
+#+begin_src emacs-lisp
+(when (version< emacs-version "27.1")
+  (warn "Your Emacs might be too old -- This setup was made for
+	 version 27.1 or newer. Proceed with caution!"))
+(when (not *is-a-mac*)
+  (warn "This config was made for my Macbook Air with a UK
+         English keyboard layout. Proceed with caution."))
+#+end_src
+
+** straight.el
+   https://github.com/raxod502/straight.el/tree/develop
+
+   Bootstrap
+   #+begin_src emacs-lisp
+   (setq straight-recipes-gnu-elpa-use-mirror t
+         straight-repository-branch           "develop"
+         straight-vc-git-default-clone-depth  1
+         straight-check-for-modifications     '(find-when-checking))
+   (defvar bootstrap-version)
+   (let ((bootstrap-file
+   (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+   (bootstrap-version 5))
+   (unless (file-exists-p bootstrap-file)
+   (with-current-buffer
+   (url-retrieve-synchronously
+   "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
+   'silent 'inhibit-cookies)
+   (goto-char (point-max))
+    (eval-print-last-sexp)))
+    (load bootstrap-file nil 'nomessage))
+   #+end_src
+
+   Wrap it in [[https://github.com/jwiegley/use-package][use-package]]. Make sure you don't use stuff like =:ensure t= or =:defer=.
+   See https://github.crookster.org/switching-to-straight.el-from-emacs-26-builtin-package.el/
+   #+begin_src emacs-lisp
+   (straight-use-package 'use-package)
+   (setq straight-enable-use-package-integration t
+         straight-use-package-by-default         t)
+   #+end_src
+
+* Quality of life
+emacs settings, mainly cherrypicked from [[https://git.sr.ht/~technomancy/better-defaults][better-defaults]] and
+sensible-defaults.el, maybe take a look at crux?
+
+** killring
+We have buttloads of memory, might as well use it.
+#+begin_src emacs-lisp
+(setq global-mark-ring-max 500
+      mark-ring-max        500
+      kill-ring-max        500)
+#+end_src
+
+** macos
+#+begin_src emacs-lisp
+(when *is-a-mac*
+  (setq mac-command-modifier 'meta)
+  (setq mac-option-modifier nil)
+  (setq mac-function-modifier nil))
+
+;; Make use of osx trash
+(use-package osx-trash
+  :if *is-a-mac*
+  :config
+  (osx-trash-setup)
+  (setq-default delete-by-moving-to-trash t))
+
+;; open files from finder in active frame
+(setq ns-pop-up-frames nil)
+#+end_src
+
+env and path variables can be a pain in the butt, specially in macos. Steve
+Purcell's [[https://github.com/purcell/exec-path-from-shell][exec-path-from-shell]] makes life a little easier.
+#+begin_src emacs-lisp
+(use-package exec-path-from-shell
+  :if *is-a-mac*
+  :config
+  (exec-path-from-shell-initialize)
+  (exec-path-from-shell-copy-envs '("LANG"
+				    "LC_ALL"
+				    "GPG_AGENT_INFO"
+				    "SSH_AUTH_SOCK")))
+#+end_src
+
+** utf-8 everywhere
+#+begin_src emacs-lisp
+(setq utf-translate-cjk-mode nil) ; disable CJK coding/encoding
+(set-language-environment    'utf-8)
+(setq locale-coding-system   'utf-8)
+(set-default-coding-systems  'utf-8)
+(set-terminal-coding-system  'utf-8)
+(set-selection-coding-system 'utf-8)
+(prefer-coding-system        'utf-8)
+#+end_src
+
+** mouse
+Mouse scrolling is a bitch. This makes it better, at least with the Macbook
+touchpad.
+#+begin_src emacs-lisp
+(setq scroll-step                     1
+      scroll-conservatively           101
+      scroll-preserve-screen-position 'always
+      next-screen-context-lines       5
+      debugger-stack-frame-as-list    t
+      mouse-wheel-follow-mouse        t
+      mouse-wheel-scroll-amount       '(1 ((shift) . 1))
+      mouse-wheel-progressive-speed   nil
+      mouse-yank-at-point             t)
+#+end_src
+*** TODO Test this with an ordinary mouse
+Find something that works with both!
+
+** fullscreen
+#+begin_src emacs-lisp
+(add-hook 'emacs-startup-hook (lambda () (toggle-frame-maximized)))
+(when *is-a-mac* (setq ns-use-native-fullscreen nil))
+#+end_src
+   
+** Unsorted
+#+begin_src emacs-lisp
+(blink-cursor-mode 0)
+
+(setq uniquify-buffer-name-style 'forward) ; unique buffer names
+(save-place-mode 1)                        ; https://www.emacswiki.org/emacs/SavePlace
+
+(show-paren-mode 1)                        ; Indicate matching pairs of
+                                           ; parentheses
+(setq show-paren-delay 0.0)
+
+(setq-default indent-tabs-mode nil)
+(setq tab-width 2) ; I like tab-width 2. Note that certain languages may need
+                   ; different tab-width
+
+(setq-default fill-column 80) ; always break at 80
+(column-number-mode 1)
+
+(setq load-prefer-newer         t
+      delete-selection-mode     t
+      sentence-end-double-space nil
+      vc-follow-symlinks        t
+      default-directory         "~/"
+      confirm-kill-emacs        'y-or-n-p
+      require-final-newline     t)
+(fset 'yes-or-no-p 'y-or-n-p)
+
+(global-font-lock-mode t)   ; is this really a good idea?
+(global-auto-revert-mode t) ; refresh buffer on file change
+
+(setq visible-bell t) ; visual DING!
+#+end_src
+
+* UI
+Font(s), theme, modeline
+** Fonts
+I'm quite fond of the [[https://github.com/be5invis/Iosevka][Iosevka]] font(s)
+#+begin_src emacs-lisp
+(set-face-attribute 'default nil :family "Iosevka" :height 160)
+(set-face-attribute 'fixed-pitch nil :family "Iosevka")
+(set-face-attribute 'variable-pitch nil :family "Iosevka Slab")
+ #+end_src
+
+emacs 27 introduced the new =:extend= face attribute. In turn, this made
+=org-block= look weird. Not all themes are properly updated. Currently not
+needed. yet.
+
+#+begin_src emacs-lisp
+(defun knube/fix-org-blocks ()
+  (interactive)
+  (eval-after-load 'org
+    (lambda ()
+      (set-face-attribute 'org-block nil :extend t)
+      (set-face-attribute 'org-block-begin-line nil :extend t)
+      (set-face-attribute 'org-block-end-line nil :extend t))))
+#+end_src
+
+** Theme
+I like the [[https://gitlab.com/protesilaos/modus-themes][modus themes]]. Good contrast. Default is the light
+theme, cycle with =M-x knube/toggle-theme=
+
+#+begin_src emacs-lisp
+(use-package modus-operandi-theme) ; light theme
+(use-package modus-vivendi-theme)  ; dark theme
+
+(defun knube/toggle-theme ()
+  "Toggle between `modus-operandi' and `modus-vivendi' themes."
+  (interactive)
+  (if (eq (car custom-enabled-themes) 'modus-operandi)
+      (progn
+        (disable-theme 'modus-operandi)
+        (load-theme 'modus-vivendi t))
+    (disable-theme 'modus-vivendi)
+    (load-theme 'modus-operandi t))
+  (knube/fix-modeline))
+
+(defun knube/fix-modeline ()
+  "Quick fix for mode-line"
+  (interactive)
+  (let ((line (face-attribute 'mode-line :underline)))
+    (set-face-attribute 'mode-line          nil :overline   line)
+    (set-face-attribute 'mode-line-inactive nil :overline   line)
+    (set-face-attribute 'mode-line-inactive nil :underline  line)
+    (set-face-attribute 'mode-line          nil :box        nil)
+    (set-face-attribute 'mode-line-inactive nil :box        nil)))
+
+(setq modus-operandi-theme-mode-line 'moody 
+      modus-vivendi-theme-mode-line  'moody)
+
+(setq modus-operandi-theme-org-blocks 'greyscale
+      modus-vivendi-theme-org-blocks  'greyscale)
+
+(setq modus-operandi-theme-scale-headings t
+      modus-vivendi-theme-scale-headings  t)
+
+(setq modus-operandi-theme-variable-pitch-headings t
+      modus-vivendi-theme-variable-pitch-headings  t)
+
+(load-theme 'modus-operandi t)
+(knube/fix-modeline)
+#+end_src
+
+** modeline
+[[https://github.com/tarsius/minions][minions]] packs minor modes into a nice little icon
+#+begin_src emacs-lisp
+(use-package minions
+  :config
+  (setq minions-mode-line-lighter "☰")
+  (minions-mode 1))
+#+end_src
+
+
+[[https://github.com/tarsius/moody][moody]] is an ok modeline
+#+begin_src emacs-lisp
+(use-package moody
+  :config
+  (setq x-underline-at-descent-line t)
+  (moody-replace-mode-line-buffer-identification)
+  (moody-replace-vc-mode))
+#+end_src
+
+* Keybindings
+** general.el
+[[https://github.com/noctuid/general.el][general.el]] is my preferred choice for keybindings. Works well with evil
+#+begin_src emacs-lisp
+(use-package general)
+#+end_src
+
+** Unbinds
+Default emacs comes with a shitton of keybindings that are annoying at times.
+Expect this section to grow!
+#+begin_src emacs-lisp
+(general-unbind "M-v"      ; I need to embrace evil's copy and paste
+                "M-c"
+                "s-p"      ; no one needs print
+                "C-x f"    ; set-fill-column is always 80
+                "C-x C-n") ; set-goal-column is just annoying
+#+end_src
+
+** which-key
+[[https://github.com/justbur/emacs-which-key][which-key]] displays keybindings, quite wonderful!
+#+begin_src emacs-lisp
+(use-package which-key
+  :config
+  (setq which-key-idle-delay 0.3
+        which-key-separator " "
+        which-key-prefix-prefix "+")
+  (which-key-mode))
+#+end_src
+
+** evil
+I'm not really one of those hardcode ex-vimmers, but modal editing is nifty.
+Expect this section to grow with time.
+
+https://github.com/emacs-evil/evil
+#+begin_src emacs-lisp
+(use-package evil
+  :after helm
+  :init
+  (setq evil-want-integration t
+        evil-want-keybinding  nil
+        evil-want-fine-undo   t)
+  :config
+  (evil-mode 1))
+#+end_src
+
+https://github.com/emacs-evil/evil-collection
+#+begin_src emacs-lisp
+(use-package evil-collection
+  :after evil
+  :config
+  (setq evil-want-keybinding nil)
+  (evil-collection-init))
+#+end_src
+
+https://github.com/Somelauw/evil-org-mode
+#+begin_src emacs-lisp
+(use-package evil-org
+  :after org
+  :config
+  (add-hook 'org-mode-hook 'evil-org-mode)
+  (add-hook 'evil-org-mode-hook
+            (lambda ()
+              (evil-org-set-key-theme)))
+  (require 'evil-org-agenda)
+  (evil-org-agenda-set-keys))
+#+end_src
+
+*** TODO More evil packages
+embrace and surround, evil-tex
+
+* Completion
+** helm
+I've been a bit back and forth between [[https://github.com/abo-abo/swiper][ivy]] and [[https://emacs-helm.github.io/helm/][helm]], but stuff like org-ref tips
+it in the favor of the latter
+#+begin_src emacs-lisp
+(use-package helm
+  :init
+  (require 'helm-config)
+  :config
+  (helm-mode 1)
+  (general-define-key
+   "M-x"     'helm-M-x
+   "C-x C-f" 'helm-find-files)
+  (general-define-key
+   :keymaps 'helm-map
+   "<tab>" 'helm-execute-persistent-action
+   "C-i"   'helm-execute-persistent-action
+   "C-z"   'helm-select-action))
+
+(use-package helm-descbinds
+  :config 
+  (helm-descbinds-mode))
+#+end_src
+
+#+RESULTS:
+: t
+
+
+** company
+#+begin_src emacs-lisp
+(use-package company
+  :hook
+  (after-init . global-company-mode)
+  :config
+  (setq company-idle-delay            0.25
+        company-minimum-prefix-length 2
+        company-tooltip-limit         10
+        company-backends '(company-capf)))
+#+end_src
+** yasnippet
+*** TODO Make sure company and yasnippet play nicely
+
+* org-mode
+org-mode is brilliant!
+#+begin_src emacs-lisp
+(use-package org
+  :straight org-plus-contrib
+  :config
+  (setq org-startup-indented         t     ; indent sections
+        org-src-tab-acts-natively    t     ; tab works as in any major mode
+        org-src-preserve-indentation t
+        org-log-into-drawer          t     ; wtf is this?
+        org-src-fontify-natively     t     ; highlight code
+        org-log-done                 'time ; add dates on completion of TODOs
+        org-support-shift-select     t     ; select holding down shift
+        org-startup-truncated        nil
+        org-directory                "~/Dropbox/org"
+        org-agenda-files             '("~/Dropbox/org/agenda")
+        org-ellipsis                 " ➙"
+        org-src-window-setup         'current-window
+        org-latex-pdf-process        (list "latexmk -xelatex -shell-escape -bibtex -f %f"))
+  (add-to-list 'org-structure-template-alist '("se" . "src emacs-lisp"))
+  (general-unbind
+    :keymaps 'org-mode-map
+    "C-c '")
+  (general-define-key
+   :keymaps 'org-mode-map
+   "C-c C-'" 'org-edit-special)
+  (general-define-key
+   :keymaps 'org-src-mode-map
+   "C-c C-'" 'org-edit-src-exit))
+#+end_src
+
+** org-ref
+#+begin_src emacs-lisp
+(use-package org-ref
+  :after org
+  :config
+  (setq reftex-default-bibliography '("~/Dropbox/org/bibliography/references.bib"))
+  ;; see org-ref for use of these variables
+  (setq org-ref-bibliography-notes "~/Dropbox/org/bibliography/notes.org"
+        org-ref-default-bibliography '("~/Dropbox/org/bibliography/references.bib")
+        org-ref-pdf-directory "~/Dropbox/org/bibliography/bibtex-pdfs/"))
+#+end_src
+
+* Languages
+** LaTeX
+*** cdlatex
+** R
+** TODO Finish up this section
+
+* Local variables
+# Local Variables:
+# eval: (add-hook 'after-save-hook (lambda ()(org-babel-tangle)) nil t)
+# End:
