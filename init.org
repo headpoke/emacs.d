@@ -390,24 +390,73 @@ it in the favor of the latter
   :init
   (require 'helm-config)
   :config
+  (setq helm-autoresize-max-height 5 
+        helm-autoresize-min-height 20)
+  (helm-autoresize-mode 1)
   (helm-mode 1)
+  
   (general-define-key
    "M-x"     'helm-M-x
-   "C-x C-f" 'helm-find-files)
+   "C-x C-f" 'helm-find-files
+   "C-x b"   'helm-mini)
+  
   (general-define-key
    :keymaps 'helm-map
    "<tab>" 'helm-execute-persistent-action
    "C-i"   'helm-execute-persistent-action
    "C-z"   'helm-select-action))
+#+end_src
 
+https://github.com/emacs-helm/helm-descbinds
+#+begin_src emacs-lisp
 (use-package helm-descbinds
-  :config 
+  :config
   (helm-descbinds-mode))
 #+end_src
 
-#+RESULTS:
-: t
+https://github.com/emacs-helm/helm-org
+#+begin_src emacs-lisp
+(use-package helm-org)
+#+end_src
 
+https://github.com/emacsorphanage/helm-swoop
+#+begin_src emacs-lisp
+(use-package helm-swoop
+  :config
+  (general-define-key
+   "M-i"     'helm-swoop
+   "M-I"     'helm-swoop-back-to-last-point
+   "C-c M-i" 'helm-multi-swoop
+   "C-x M-i" 'helm-multi-swoop-all)
+  
+  (general-define-key
+   :keymaps 'isearch-mode-map
+   "M-i" 'helm-swoop-from-isearch) ; from isearch
+
+  (general-define-key
+   :keymaps 'evil-motion-state-map
+   "M-i" 'helm-swoop-from-evil-search) ; from evil search
+  
+  (general-define-key
+   :keymaps 'helm-swoop-map
+   "M-i" 'helm-multi-swoop-all-from-helm-swoop          ; from helm-swoop to helm-multi-swoop
+   "M-m" 'helm-multi-swoop-current-mode-from-helm-swoop
+   "C-r" 'helm-previous-line                            ; move up and down like isearch
+   "C-s" 'helm-next-line)
+
+  (general-define-key
+   :keymaps 'helm-multi-swoop-map
+   "C-r" 'helm-previous-line
+   "C-s" 'helm-next-line)
+
+  (setq helm-multi-swoop-edit-save             t
+        helm-swoop-split-with-multiple-windows nil
+        helm-swoop-split-direction             'split-window-vertically
+        helm-swoop-speed-or-color              nil
+        helm-swoop-move-to-line-cycle          t
+        helm-swoop-use-line-number-face        t
+        helm-swoop-use-fuzzy-match             t))
+#+end_src
 
 ** company
 #+begin_src emacs-lisp
@@ -420,6 +469,7 @@ it in the favor of the latter
         company-tooltip-limit         10
         company-backends '(company-capf)))
 #+end_src
+
 ** yasnippet
 *** TODO Make sure company and yasnippet play nicely
 
@@ -428,6 +478,8 @@ org-mode is brilliant!
 #+begin_src emacs-lisp
 (use-package org
   :straight org-plus-contrib
+  :hook
+  (org-mode . turn-on-org-cdlatex)
   :config
   (setq org-startup-indented         t     ; indent sections
         org-src-tab-acts-natively    t     ; tab works as in any major mode
@@ -469,6 +521,15 @@ org-mode is brilliant!
 * Languages
 ** LaTeX
 *** cdlatex
+#+begin_src emacs-lisp
+(use-package cdlatex
+  :hook
+  (org-mode   . turn-on-org-cdlatex)
+  (LaTeX-mode . turn-on-cdlatex)
+  :config
+  (setq cdlatex-env-alist
+        '(("equation*" "\\begin{equation*}\n?\n\\end{equation*}\n" nil))))
+#+end_src
 ** R
 ** TODO Finish up this section
 
