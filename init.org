@@ -477,7 +477,7 @@ https://github.com/emacsorphanage/helm-swoop
 org-mode is brilliant!
 #+begin_src emacs-lisp
 (use-package org
-  :straight org-plus-contrib
+  :straight org-plus-contrib 
   :hook
   (org-mode . turn-on-org-cdlatex)
   :config
@@ -493,11 +493,12 @@ org-mode is brilliant!
         org-agenda-files             '("~/Dropbox/org/agenda")
         org-ellipsis                 " ➙"
         org-src-window-setup         'current-window
-        org-latex-pdf-process        (list "latexmk -xelatex -shell-escape -bibtex -f %f"))
+        org-latex-pdf-process        (list "latexmk -f %f"))
   (add-to-list 'org-structure-template-alist '("se" . "src emacs-lisp"))
   (general-unbind
     :keymaps 'org-mode-map
-    "C-c '")
+    "C-c '"  ; redefined below
+    "C-c [") ; I have no need to "put whatever to the front of the agenda"
   (general-define-key
    :keymaps 'org-mode-map
    "C-c C-'" 'org-edit-special)
@@ -505,6 +506,8 @@ org-mode is brilliant!
    :keymaps 'org-src-mode-map
    "C-c C-'" 'org-edit-src-exit))
 #+end_src
+
+#+RESULTS:
 
 ** org-ref
 #+begin_src emacs-lisp
@@ -520,6 +523,36 @@ org-mode is brilliant!
 
 * Languages
 ** LaTeX
+*** Auctex
+#+begin_src emacs-lisp
+(use-package tex
+  :straight auctex
+  :hook
+  (LaTeX-mode . reftex-mode)
+  (LaTeX-mode . LaTeX-math-mode)
+  (LaTeX-mode . TeX-PDF-mode)
+
+  :config
+  (setq-default TeX-master nil
+                TeX-engine 'xetex)
+  
+  (setq TeX-source-correlate-method 'synctex
+        TeX-source-correlate        t
+        TeX-PDF-mode                t
+        TeX-auto-save               t
+        TeX-save-query              nil
+        TeX-parse-self              t
+        reftex-plug-into-AUCTeX     t
+        TeX-view-program-list       '(("Skim" "/Applications/Skim.app/Contents/SharedSupport/displayline -g %n %o %b"))
+        TeX-view-program-selection  '((output-pdf "Skim"))
+        TeX-clean-confirm           nil))
+
+(use-package auctex-latexmk
+  :config
+  (setq auctex-latexmk-inherit-TeX-PDF-mode t)
+  (auctex-latexmk-setup))
+#+end_src
+
 *** cdlatex
 #+begin_src emacs-lisp
 (use-package cdlatex
@@ -530,6 +563,9 @@ org-mode is brilliant!
   (setq cdlatex-env-alist
         '(("equation*" "\\begin{equation*}\n?\n\\end{equation*}\n" nil))))
 #+end_src
+
+*** evil-tex
+
 ** R
 ** TODO Finish up this section
 
