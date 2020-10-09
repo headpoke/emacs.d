@@ -1,4 +1,5 @@
-#+PROPERTY: header-args :tangle yes
+#+PROPERTY: header-args :tangle yes :results silent
+
 * Startup
 ** early-init.el
 emacs 27 introduced =early-init.el= which is run before =init.el=, package or
@@ -8,7 +9,7 @@ can improve startup times a bit.
 ;;; early-init.el --- -*- lexical-binding: t -*-
 (defvar startup-file-name-handler-alist file-name-handler-alist)
 
-(setq gc-cons-threshold         most-positive-fixnum ; set to 64MB later
+(setq gc-cons-threshold         most-positive-fixnum ; set to 32MB later
       gc-cons-percentage        0.6                  ; set to 0.1 later
       debug-on-error            t                    ; reset later
       file-name-handler-alist   nil                  ; reset later
@@ -24,6 +25,8 @@ can improve startup times a bit.
 (setq inhibit-startup-message t
       inhibit-scratch-message t
       load-prefer-newer       t)
+
+(setq-default evil-want-keybinding nil)
 #+end_src
 
 ** Lexical binding
@@ -38,24 +41,14 @@ can improve startup times a bit.
  #+end_src
 
 ** User info
-Load personal file
 #+begin_src emacs-lisp
-(lambda ()
-  (setq-local userinfo (concat user-emacs-directory "userinfo.el"))
-  (when (file-exists-p userinfo)
-    (load-file userinfo)))
+(setq user-full-name         "Knut Berg"
+      user-mail-address      "knut.berg@nord.no"
+      calendar-latitude      67.289
+      calendar-longitude     14.560
+      calendar-location-name "Bodø, Norway")
 #+end_src
    
-Example file:
-#+begin_src emacs-lisp :tangle no
-;;; user-info.el --- -*- lexical-binding: t -*-
-(setq user-full-name         "John Doe"
-      user-mail-address      "john@doe.com"
-      calendar-latitude      00.000
-      calendar-longitude     00.000
-      calendar-location-name "City name, Country ")
-#+end_src
-
 ** startup-hooks
 #+begin_src emacs-lisp
 (defvar knube-gc-cons-threshold (* 32 1024 1024)) ; increase if stuttering
@@ -85,52 +78,46 @@ Example file:
          English keyboard layout. Proceed with caution."))
 #+end_src
 
-** use-package 
-Bootstrap [[https://github.com/jwiegley/use-package][use-package]]
+** straight.el (package manager) 
+Bootstrap [[https://github.com/raxod502/straight.el/tree/develop][straight.el]]
 #+begin_src emacs-lisp
-(require 'package)
-(setq package-archives '(("melpa"        . "https://melpa.org/packages/")
-			 ("elpa"         . "https://elpa.gnu.org/packages/")
-			 ("org"          . "https://orgmode.org/elpa/"))
-      tls-checktrust t
-      tls-program '("gnutls-cli --x509cafile %t -p %p %h")
-      gnutls-verify-error t)
-(package-initialize)
-
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
-
-(eval-when-compile (require 'use-package)
-                   (setq use-package-always-ensure t))
- #+end_src
-
-** auto-compile
-https://github.com/emacscollective/auto-compile
-#+begin_src emacs-lisp
-(use-package auto-compile
-  :config
-  (setq auto-compile-display-buffer nil
-        auto-compile-mode-line-counter t)
-  (auto-compile-on-load-mode)
-  (auto-compile-on-save-mode))
+(setq straight-recipes-gnu-elpa-use-mirror t
+      straight-repository-branch           "develop")
+;;        straight-vc-git-default-clone-depth  1
+;;        straight-check-for-modifications     '(find-when-checking))
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name "straight/repos/straight.el/bootstrap.el"
+       user-emacs-directory))
+      (bootstrap-version 5))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
 #+end_src
 
-** auto-update
-https://github.com/rranelli/auto-package-update.el
+*** Integrate with use-package
 #+begin_src emacs-lisp
-  (use-package auto-package-update
-    :config
-    (setq auto-package-update-interval             7
-          auto-package-update-prompt-before-update t
-          auto-package-update-delete-old-versions  t
-          auto-package-update-hide-results         t))
+(straight-use-package 'use-package)
+(setq straight-enable-use-package-integration t
+      straight-use-package-by-default         t)
 #+end_src
 
+*** Avoid version mismatch with org
+We avoid version mismatching issues by installing org before any other packages.
+#+begin_src emacs-lisp
+(straight-use-package 'org-plus-contrib)
+(straight-use-package '(org :local-repo nil))
+#+end_src
 
 * Quality of life
 emacs settings, mainly cherrypicked from [[https://git.sr.ht/~technomancy/better-defaults][better-defaults]] and
 sensible-defaults.el, maybe take a look at crux?
+** TODO Take a look at crux
 
 ** no-littering
 #+begin_src emacs-lisp
@@ -168,6 +155,7 @@ We have buttloads of memory, might as well use it.
 (setq ns-pop-up-frames nil)
 #+end_src
 
+** exec-path-from-shell
 env and path variables can be a pain in the butt, specially in macos. Steve
 Purcell's [[https://github.com/purcell/exec-path-from-shell][exec-path-from-shell]] makes life a little easier.
 #+begin_src emacs-lisp
@@ -182,6 +170,7 @@ Purcell's [[https://github.com/purcell/exec-path-from-shell][exec-path-from-shel
 #+end_src
 
 ** utf-8 everywhere
+Not sure if I need to set /all/ of these, but what the hell...
 #+begin_src emacs-lisp
 (setq utf-translate-cjk-mode nil) ; disable CJK coding/encoding
 (set-language-environment    'utf-8)
@@ -220,7 +209,8 @@ Find something that works with both!
 (blink-cursor-mode 0)
 
 (setq uniquify-buffer-name-style 'forward) ; unique buffer names
-(save-place-mode 1)                        ; https://www.emacswiki.org/emacs/SavePlace
+
+(save-place-mode 1); https://www.emacswiki.org/emacs/SavePlace
 
 (show-paren-mode 1)                        ; Indicate matching pairs of
                                            ; parentheses
@@ -245,22 +235,29 @@ Find something that works with both!
 (global-auto-revert-mode t) ; refresh buffer on file change
 
 (setq visible-bell t) ; visual DING!
+
+(setq save-abbrevs 'silently)
+(setq-default abbrev-mode t)
+
+(setq large-file-warning-threshold (* 15 1024 1024))
 #+end_src
 
 * UI
-Font(s), theme, modeline
+Font(s), theme, modeline etc. Everything "visual" goes here.
+
 ** Fonts
-I'm quite fond of the [[https://github.com/be5invis/Iosevka][Iosevka]] font(s)
+I've settled on the [[https://www.ibm.com/plex/][IBM Plex]] fonts. Seems nice. 
 #+begin_src emacs-lisp
-(set-face-attribute 'default nil :family "Iosevka" :height 160)
-(set-face-attribute 'fixed-pitch nil :family "Iosevka")
-(set-face-attribute 'variable-pitch nil :family "Iosevka Slab")
+(set-face-attribute 'default nil        :family "IBM Plex Mono" :height 180)
+(set-face-attribute 'fixed-pitch nil    :family "IBM Plex Mono")
+(set-face-attribute 'variable-pitch nil :family "IBM Plex Sans")
+                                        ; IBM Plex Serif is also good for
+                                        ; variable-pitch
  #+end_src
 
 emacs 27 introduced the new =:extend= face attribute. In turn, this made
 =org-block= look weird. Not all themes are properly updated. Currently not
-needed. yet.
-
+needed.
 #+begin_src emacs-lisp
 (defun knube/fix-org-blocks ()
   (interactive)
@@ -274,7 +271,6 @@ needed. yet.
 ** Theme
 I like the [[https://gitlab.com/protesilaos/modus-themes][modus themes]]. Good contrast. Default is the light
 theme, cycle with =M-x knube/toggle-theme=
-
 #+begin_src emacs-lisp
 (use-package modus-operandi-theme) ; light theme
 (use-package modus-vivendi-theme)  ; dark theme
@@ -288,52 +284,82 @@ theme, cycle with =M-x knube/toggle-theme=
         (load-theme 'modus-vivendi t))
     (disable-theme 'modus-vivendi)
     (load-theme 'modus-operandi t)))
-  ;(knube/fix-modeline))
 
-(defun knube/fix-modeline ()
-  "Quick fix for mode-line"
-  (interactive)
-  (let ((line (face-attribute 'mode-line :underline)))
-    (set-face-attribute 'mode-line          nil :overline   line)
-    (set-face-attribute 'mode-line-inactive nil :overline   line)
-    (set-face-attribute 'mode-line-inactive nil :underline  line)
-    (set-face-attribute 'mode-line          nil :box        nil)
-    (set-face-attribute 'mode-line-inactive nil :box        nil)))
-
-(setq modus-operandi-theme-mode-line 'moody 
-      modus-vivendi-theme-mode-line  'moody)
+(setq modus-operandi-theme-mode-line nil 
+      modus-vivendi-theme-mode-line  nil)
 
 (setq modus-operandi-theme-org-blocks 'greyscale
       modus-vivendi-theme-org-blocks  'greyscale)
 
-(setq modus-operandi-theme-scale-headings t
-      modus-vivendi-theme-scale-headings  t)
 
 (setq modus-operandi-theme-variable-pitch-headings t
       modus-vivendi-theme-variable-pitch-headings  t)
 
+(setq modus-operandi-theme-scale-headings t
+      modus-vivendi-theme-scale-headings  t)
+
+(setq modus-operandi-theme-scale-1 1.2
+      modus-operandi-theme-scale-2 1.4
+      modus-operandi-theme-scale-3 1.6
+      modus-operandi-theme-scale-4 1.8
+      modus-operandi-theme-scale-5 2.0)
+
+(setq modus-vivendi-theme-scale-1 1.2
+      modus-vivendi-theme-scale-2 1.4
+      modus-vivendi-theme-scale-3 1.6
+      modus-vivendi-theme-scale-4 1.8
+      modus-vivendi-theme-scale-5 2.0)
+
 (load-theme 'modus-operandi t)
-;(knube/fix-modeline)
 #+end_src
 
 ** modeline
-[[https://github.com/tarsius/minions][minions]] packs minor modes into a nice little icon
-#+begin_src emacs-lisp
+*** minions
+[[https://github.com/tarsius/minions][minions]] packs all minor modes into a nice little icon
+#+begin_src emacs-lisp 
 (use-package minions
   :config
-  (setq minions-mode-line-lighter "☰")
+  (setq minions-mode-line-lighter    "☰"
+        minions-mode-line-delimiters '("" . ""))
   (minions-mode 1))
 #+end_src
 
-
-[[https://github.com/tarsius/moody][moody]] is an ok modeline
+*** telephone-line
 #+begin_src emacs-lisp
-(use-package moody
+(use-package telephone-line
   :config
-  (setq x-underline-at-descent-line t)
-  (moody-replace-mode-line-buffer-identification)
-  (moody-replace-vc-mode))
+  (setq telephone-line-lhs
+        '((evil   . (telephone-line-evil-tag-segment
+                     telephone-line-airline-position-segment))
+          (accent . (telephone-line-buffer-name-segment))
+          (nil    . (telephone-line-buffer-modified-segment)))
+        
+        telephone-line-rhs
+        '((nil    . (telephone-line-minions-mode-segment))
+          (accent . (telephone-line-vc-segment))
+          (nil    . (telephone-line-misc-info-segment))))
+
+  (unless (equal "Battery status not available"
+                 (battery))          
+    (display-battery-mode 1))      
+  
+  (setq display-time-24hr-format            t  
+        display-time-day-and-date           t
+        display-time-default-load-average   nil
+        display-time-load-average           nil
+        display-time-load-average-threshold nil)
+  (display-time-mode 1)             
+  
+  (telephone-line-mode 1))
 #+end_src
+
+** writeroom-mode
+https://github.com/joostkremers/writeroom-mode. Activate manually with =M-x
+writeroom-mode=
+#+begin_src emacs-lisp
+(use-package writeroom-mode)
+#+end_src
+*** TODO Hook this into org-mode?
 
 * Keybindings
 ** general.el
@@ -364,14 +390,14 @@ Expect this section to grow!
   (which-key-mode))
 #+end_src
 
-** evil
+* evil-mode
 I'm not really one of those hardcode ex-vimmers, but modal editing is nifty.
 Expect this section to grow with time.
-
+** evil
 https://github.com/emacs-evil/evil
 #+begin_src emacs-lisp
 (use-package evil
-  :after helm
+  :after helm 
   :init
   (setq evil-want-integration t
         evil-want-keybinding  nil
@@ -380,6 +406,7 @@ https://github.com/emacs-evil/evil
   (evil-mode 1))
 #+end_src
 
+** evil-collection
 https://github.com/emacs-evil/evil-collection
 #+begin_src emacs-lisp
 (use-package evil-collection
@@ -389,6 +416,7 @@ https://github.com/emacs-evil/evil-collection
   (evil-collection-init))
 #+end_src
 
+** evil-org
 https://github.com/Somelauw/evil-org-mode
 #+begin_src emacs-lisp
 (use-package evil-org
@@ -402,8 +430,43 @@ https://github.com/Somelauw/evil-org-mode
   (evil-org-agenda-set-keys))
 #+end_src
 
-*** TODO More evil packages
-embrace and surround, evil-tex
+** evil-escape
+https://github.com/syl20bnr/evil-escape
+#+begin_src emacs-lisp
+(use-package evil-escape
+  :config
+  (setq-default evil-escape-key-sequence "fd")
+  (evil-escape-mode))
+#+end_src
+
+** evil-surround
+https://github.com/emacs-evil/evil-surround
+#+begin_src emacs-lisp
+(use-package evil-surround
+  :config
+  (global-evil-surround-mode 1))
+#+end_src
+
+** evil-embrace
+https://github.com/cute-jumper/evil-embrace.el
+#+begin_src emacs-lisp
+(use-package evil-embrace
+  :config
+  (evil-embrace-enable-evil-surround-integration)
+  (add-hook 'org-mode-hook 'embrace-org-mode-hook))
+#+end_src
+
+** evil-nerd-commenter
+https://github.com/redguardtoo/evil-nerd-commenter
+#+begin_src emacs-lisp
+(use-package evil-nerd-commenter
+  :config
+  (evilnc-default-hotkeys))
+#+end_src
+
+** other evil packages?
+Check which other evil packages I might need. See what doom emacs loads, but for
+now I'd like to minimize the confusion.
 
 * Completion
 ** helm
@@ -414,8 +477,8 @@ it in the favor of the latter
   :init
   (require 'helm-config)
   :config
-  (setq helm-autoresize-max-height 5 
-        helm-autoresize-min-height 20)
+  (setq helm-autoresize-max-height 33  ; these are percentages?
+        helm-autoresize-min-height 33)
   (helm-autoresize-mode 1)
   (helm-mode 1)
   
@@ -490,38 +553,51 @@ https://github.com/emacsorphanage/helm-swoop
   :config
   (setq company-idle-delay            0.25
         company-minimum-prefix-length 2
-        company-tooltip-limit         10
-        company-backends '(company-capf)))
+        company-tooltip-limit         15))
 #+end_src
 
 ** yasnippet
+https://github.com/joaotavora/yasnippet
+#+begin_src emacs-lisp
+(use-package yasnippet
+  :config
+  (setq yas-snippet-dirs '("~/.emacs.d/snippets"))
+  (yas-global-mode 1))
+#+end_src
+
 *** TODO Make sure company and yasnippet play nicely
 
 * org-mode
 org-mode is brilliant!
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :results silent 
 (use-package org
-  :demand t
-  :ensure org-plus-contrib
   :mode ("\\.org\\'" . org-mode)
+  :hook (org-mode . variable-pitch-mode)
   :config
-  ;; (require 'org-tempo)
+  (require 'org-tempo)
   ;; (require 'ob-latex)
   ;; (require 'ob-emacs-lisp)
-  (add-hook 'org-mode-hook 'turn-on-org-cdlatex)
-  (setq org-startup-indented         t     ; indent sections
-        org-src-tab-acts-natively    t     ; tab works as in any major mode
-        org-src-preserve-indentation t
-        org-log-into-drawer          t     ; wtf is this?
-        org-src-fontify-natively     t     ; highlight code
-        org-log-done                 'time ; add dates on completion of TODOs
-        org-support-shift-select     t     ; select holding down shift
-        org-startup-truncated        nil
-        org-directory                "~/Dropbox/org"
-        org-agenda-files             '("~/Dropbox/org/agenda")
-        org-ellipsis                 " ➙"
-        org-src-window-setup         'current-window
-        org-latex-pdf-process        (list "latexmk -f %f"))
+  (add-hook 'org-mode-hook     'turn-on-org-cdlatex)
+  (add-hook 'org-src-mode-hook 'turn-on-org-cdlatex) 
+ 
+  (setq org-list-allow-alphabetical      t
+        org-startup-indented             nil   ; indent sections
+        org-indent-indentation-per-level 0 
+        org-adapt-indentation            nil
+        org-src-tab-acts-natively        t     ; tab works as in any major mode
+        org-src-preserve-indentation     t
+        org-log-into-drawer              t     ; wtf is this?
+        org-src-fontify-natively         t     ; highlight code
+        org-log-done                     'time ; add dates on completion of
+                                               ; TODOs
+        org-support-shift-select         t     ; select holding down shift
+        org-startup-truncated            nil
+        org-directory                    "~/Dropbox/org"
+        org-agenda-files                 '("~/Dropbox/org/agenda")
+        org-ellipsis                     "⤵"
+        org-src-window-setup             'current-window
+        org-latex-pdf-process            (list "latexmk -f %f"))
+  
   (add-to-list 'org-structure-template-alist '("se" . "src emacs-lisp"))
   (general-unbind
     :keymaps 'org-mode-map
@@ -535,25 +611,36 @@ org-mode is brilliant!
    "C-c C-'" 'org-edit-src-exit))
 #+end_src
 
-** org-ref
+** org-bullets
 #+begin_src emacs-lisp
+(use-package org-bullets
+  :hook (org-mode . org-bullets-mode))
+#+end_src
+
+** org-ref
+https://github.com/jkitchin/org-ref
+#+begin_src emacs-lisp 
 (use-package org-ref
   :after org
   :config
-  (setq reftex-default-bibliography '("~/Dropbox/org/bibliography/references.bib"))
+  (setq reftex-default-bibliography '("~/Dropbox/org/bibliography/references.bib")) ;; move this?
+
   ;; see org-ref for use of these variables
-  (setq org-ref-bibliography-notes "~/Dropbox/org/bibliography/notes.org"
+  (setq org-ref-bibliography-notes   "~/Dropbox/org/bibliography/notes.org"
         org-ref-default-bibliography '("~/Dropbox/org/bibliography/references.bib")
-        org-ref-pdf-directory "~/Dropbox/org/bibliography/bibtex-pdfs/"))
+        org-ref-pdf-directory        "~/Dropbox/org/bibliography/bibtex-pdfs/"))
 #+end_src
+*** TODO helm removed
+Need to see if I can easily integrate this with ivy. Checkout ivy-bibtex and company-bibtex? Updage: ivy-bibtex doesn't even work... ffs
 
 * Languages
 ** LaTeX
 *** auctex
+https://www.gnu.org/software/auctex/ All hail AucTeX!
 #+begin_src emacs-lisp
 (use-package tex-site
-  :ensure auctex
-  :mode ("\\.tex\\'". LaTeX-mode)
+  :straight auctex
+  :mode ("\\.tex\\'" . LaTeX-mode)
   :hook
   (LaTeX-mode . reftex-mode)
   (LaTeX-mode . LaTeX-math-mode)
@@ -565,7 +652,7 @@ org-mode is brilliant!
   
   (setq TeX-source-correlate-method 'synctex
         TeX-source-correlate        t
-        TeX-PDF-mode                t
+        ; TeX-PDF-mode                t
         TeX-auto-save               t
         TeX-save-query              nil
         TeX-parse-self              t
@@ -573,7 +660,11 @@ org-mode is brilliant!
         TeX-view-program-list       '(("Skim" "/Applications/Skim.app/Contents/SharedSupport/displayline -g %n %o %b"))
         TeX-view-program-selection  '((output-pdf "Skim"))
         TeX-clean-confirm           nil))
+#+end_src
 
+*** auctex-latexmk
+https://github.com/tom-tan/auctex-latexmk
+#+begin_src emacs-lisp
 (use-package auctex-latexmk
   :config
   (setq auctex-latexmk-inherit-TeX-PDF-mode t)
@@ -581,6 +672,7 @@ org-mode is brilliant!
 #+end_src
 
 *** cdlatex
+https://github.com/cdominik/cdlatex
 #+begin_src emacs-lisp
 (use-package cdlatex
   :hook
@@ -591,10 +683,34 @@ org-mode is brilliant!
         '(("equation*" "\\begin{equation*}\n?\n\\end{equation*}\n" nil))))
 #+end_src
 
+*** company-auctex
+https://github.com/alexeyr/company-auctex/
+#+begin_src emacs-lisp
+(use-package company-auctex
+  :config
+  (company-auctex-init))
+#+end_src
+
+*** company-math
+https://github.com/vspinu/company-math
+#+begin_src emacs-lisp
+(use-package company-math
+  :config
+  (add-to-list 'company-backends '(company-math-symbols-latex
+                                   company-latex-commands)))
+#+end_src
+**** TODO clean up this?
+
 *** evil-tex
+https://github.com/iyefrat/evil-tex
+#+begin_src emacs-lisp
+(use-package evil-tex
+  :hook
+  (LaTeX-mode . evil-tex))
+#+end_src
 
 ** R
-** TODO Finish up this section
+*** TODO Finish this
 
 * Local variables
 # Local Variables:
