@@ -1,0 +1,49 @@
+# -*- mode: snippet -*-
+# name: org-mode-beamer-template 
+# key: <beam
+# --
+
+#+TITLE: $1
+#+SUBTITLE: $2
+#+AUTHOR: Knut Berg, \small \href{mailto:knut.berg@nord.no}{knut.berg@nord.no}
+#+EMAIL: knut.berg@nord.no
+#+DATE: \today
+#+LANGUAGE: no
+
+#+OPTIONS: H:1 num:nil toc:nil
+#+LATEX_CLASS: beamer
+#+LATEX_CLASS_OPTIONS: [10pt]
+#+STARTUP: beamer
+
+
+#+LATEX_HEADER: \usepackage{multicol,tabularx}
+#+LATEX_HEADER: \usepackage{mdframed}
+#+LATEX_HEADER: \usepackage{mathtools}
+#+LATEX_HEADER: \usepackage{tikz-cd}
+#+LATEX_HEADER: \usepackage[style=apa6,backend=biber]{biblatex}
+#+LATEX_HEADER: \bibliography{referanser.bib}
+#+LATEX_HEADER: \AtEveryBibitem{\clearfield{note}}
+#+LATEX_HEADER: \AtEveryCitekey{\clearfield{note}}
+# bibliography:referanser.bib
+
+
+#+LATEX_HEADER: \usetheme{metropolis}
+#+LATEX_HEADER: \usefonttheme{professionalfonts}
+#+LATEX_HEADER: \mode<presentation>{}
+#+LATEX_HEADER: \metroset{block=fill}
+
+#+LATEX_HEADER: \hypersetup{colorlinks=true,urlcolor=[RGB]{0 84 147},citecolor=[RGB]{0 144 81}}
+
+
+#+LATEX_HEADER: \setbeamertemplate{navigation symbols}{}
+#+LATEX_HEADER: \setbeamertemplate{footline}{\hspace{1pt} \includegraphics[height=0.7cm]{/Users/knube/logo_NORD_transp.png} \vspace{1pt} \hfill \inserttitle \quad \insertframenumber\,/\,\inserttotalframenumber\kern1em }
+#+LATEX_HEADER: \setbeamertemplate{logo}{}
+#+LATEX_HEADER: \setbeamertemplate{frametitle continuation}{(\insertcontinuationcount)}
+
+* $3
+
+* Referanser
+  :PROPERTIES:
+  :BEAMER_OPT: fragile,allowframebreaks
+  :END:
+  \printbibliography[heading=none]
