@@ -3,10 +3,11 @@
 (setq custom-file (concat user-emacs-directory "custom.el"))
 (load custom-file 'noerror)
 
-(lambda ()
-  (setq-local userinfo (concat user-emacs-directory "userinfo.el"))
-  (when (file-exists-p userinfo)
-    (load-file userinfo)))
+(setq user-full-name         "Knut Berg"
+      user-mail-address      "knut.berg@nord.no"
+      calendar-latitude      67.289
+      calendar-longitude     14.560
+      calendar-location-name "Bodø, Norway")
 
 (defvar knube-gc-cons-threshold (* 32 1024 1024)) ; increase if stuttering
                                                   ; occurs, decrease if freezing
@@ -28,35 +29,30 @@
   (warn "This config was made for my Macbook Air with a UK
          English keyboard layout. Proceed with caution."))
 
-(require 'package)
-(setq package-archives '(("melpa"        . "https://melpa.org/packages/")
-			 ("elpa"         . "https://elpa.gnu.org/packages/")
-			 ("org"          . "https://orgmode.org/elpa/"))
-      tls-checktrust t
-      tls-program '("gnutls-cli --x509cafile %t -p %p %h")
-      gnutls-verify-error t)
-(package-initialize)
+(setq straight-recipes-gnu-elpa-use-mirror t
+      straight-repository-branch           "develop")
+;;        straight-vc-git-default-clone-depth  1
+;;        straight-check-for-modifications     '(find-when-checking))
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name "straight/repos/straight.el/bootstrap.el"
+       user-emacs-directory))
+      (bootstrap-version 5))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
 
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
+(straight-use-package 'use-package)
+(setq straight-enable-use-package-integration t
+      straight-use-package-by-default         t)
 
-(eval-when-compile (require 'use-package)
-                   (setq use-package-always-ensure t))
-
-(use-package auto-compile
-  :config
-  (setq auto-compile-display-buffer nil
-        auto-compile-mode-line-counter t)
-  (auto-compile-on-load-mode)
-  (auto-compile-on-save-mode))
-
-  (use-package auto-package-update
-    :config
-    (setq auto-package-update-interval             7
-          auto-package-update-prompt-before-update t
-          auto-package-update-delete-old-versions  t
-          auto-package-update-hide-results         t))
+(straight-use-package 'org-plus-contrib)
+(straight-use-package '(org :local-repo nil))
 
 (use-package no-littering
   :config
@@ -117,7 +113,8 @@
 (blink-cursor-mode 0)
 
 (setq uniquify-buffer-name-style 'forward) ; unique buffer names
-(save-place-mode 1)                        ; https://www.emacswiki.org/emacs/SavePlace
+
+(save-place-mode 1); https://www.emacswiki.org/emacs/SavePlace
 
 (show-paren-mode 1)                        ; Indicate matching pairs of
                                            ; parentheses
@@ -143,9 +140,16 @@
 
 (setq visible-bell t) ; visual DING!
 
-(set-face-attribute 'default nil :family "Iosevka" :height 160)
-(set-face-attribute 'fixed-pitch nil :family "Iosevka")
-(set-face-attribute 'variable-pitch nil :family "Iosevka Slab")
+(setq save-abbrevs 'silently)
+(setq-default abbrev-mode t)
+
+(setq large-file-warning-threshold (* 15 1024 1024))
+
+(set-face-attribute 'default nil        :family "IBM Plex Mono" :height 180)
+(set-face-attribute 'fixed-pitch nil    :family "IBM Plex Mono")
+(set-face-attribute 'variable-pitch nil :family "IBM Plex Sans")
+                                        ; IBM Plex Serif is also good for
+                                        ; variable-pitch
 
 (defun knube/fix-org-blocks ()
   (interactive)
@@ -167,43 +171,67 @@
         (load-theme 'modus-vivendi t))
     (disable-theme 'modus-vivendi)
     (load-theme 'modus-operandi t)))
-  ;(knube/fix-modeline))
 
-(defun knube/fix-modeline ()
-  "Quick fix for mode-line"
-  (interactive)
-  (let ((line (face-attribute 'mode-line :underline)))
-    (set-face-attribute 'mode-line          nil :overline   line)
-    (set-face-attribute 'mode-line-inactive nil :overline   line)
-    (set-face-attribute 'mode-line-inactive nil :underline  line)
-    (set-face-attribute 'mode-line          nil :box        nil)
-    (set-face-attribute 'mode-line-inactive nil :box        nil)))
-
-(setq modus-operandi-theme-mode-line 'moody 
-      modus-vivendi-theme-mode-line  'moody)
+(setq modus-operandi-theme-mode-line nil 
+      modus-vivendi-theme-mode-line  nil)
 
 (setq modus-operandi-theme-org-blocks 'greyscale
       modus-vivendi-theme-org-blocks  'greyscale)
 
-(setq modus-operandi-theme-scale-headings t
-      modus-vivendi-theme-scale-headings  t)
 
 (setq modus-operandi-theme-variable-pitch-headings t
       modus-vivendi-theme-variable-pitch-headings  t)
 
+(setq modus-operandi-theme-scale-headings t
+      modus-vivendi-theme-scale-headings  t)
+
+(setq modus-operandi-theme-scale-1 1.2
+      modus-operandi-theme-scale-2 1.4
+      modus-operandi-theme-scale-3 1.6
+      modus-operandi-theme-scale-4 1.8
+      modus-operandi-theme-scale-5 2.0)
+
+(setq modus-vivendi-theme-scale-1 1.2
+      modus-vivendi-theme-scale-2 1.4
+      modus-vivendi-theme-scale-3 1.6
+      modus-vivendi-theme-scale-4 1.8
+      modus-vivendi-theme-scale-5 2.0)
+
 (load-theme 'modus-operandi t)
-;(knube/fix-modeline)
 
 (use-package minions
   :config
-  (setq minions-mode-line-lighter "☰")
+  (setq minions-mode-line-lighter    "☰"
+        minions-mode-line-delimiters '("" . ""))
   (minions-mode 1))
 
-(use-package moody
+(use-package telephone-line
   :config
-  (setq x-underline-at-descent-line t)
-  (moody-replace-mode-line-buffer-identification)
-  (moody-replace-vc-mode))
+  (setq telephone-line-lhs
+        '((evil   . (telephone-line-evil-tag-segment
+                     telephone-line-airline-position-segment))
+          (accent . (telephone-line-buffer-name-segment))
+          (nil    . (telephone-line-buffer-modified-segment)))
+        
+        telephone-line-rhs
+        '((nil    . (telephone-line-minions-mode-segment))
+          (accent . (telephone-line-vc-segment))
+          (nil    . (telephone-line-misc-info-segment))))
+
+  (unless (equal "Battery status not available"
+                 (battery))          
+    (display-battery-mode 1))      
+  
+  (setq display-time-24hr-format            t  
+        display-time-day-and-date           t
+        display-time-default-load-average   nil
+        display-time-load-average           nil
+        display-time-load-average-threshold nil)
+  (display-time-mode 1)             
+  
+  (telephone-line-mode 1))
+
+(use-package writeroom-mode)
 
 (use-package general)
 
@@ -221,7 +249,7 @@
   (which-key-mode))
 
 (use-package evil
-  :after helm
+  :after helm 
   :init
   (setq evil-want-integration t
         evil-want-keybinding  nil
@@ -245,12 +273,30 @@
   (require 'evil-org-agenda)
   (evil-org-agenda-set-keys))
 
+(use-package evil-escape
+  :config
+  (setq-default evil-escape-key-sequence "fd")
+  (evil-escape-mode))
+
+(use-package evil-surround
+  :config
+  (global-evil-surround-mode 1))
+
+(use-package evil-embrace
+  :config
+  (evil-embrace-enable-evil-surround-integration)
+  (add-hook 'org-mode-hook 'embrace-org-mode-hook))
+
+(use-package evil-nerd-commenter
+  :config
+  (evilnc-default-hotkeys))
+
 (use-package helm
   :init
   (require 'helm-config)
   :config
-  (setq helm-autoresize-max-height 5 
-        helm-autoresize-min-height 20)
+  (setq helm-autoresize-max-height 33  ; these are percentages?
+        helm-autoresize-min-height 33)
   (helm-autoresize-mode 1)
   (helm-mode 1)
   
@@ -313,31 +359,41 @@
   :config
   (setq company-idle-delay            0.25
         company-minimum-prefix-length 2
-        company-tooltip-limit         10
-        company-backends '(company-capf)))
+        company-tooltip-limit         15))
+
+(use-package yasnippet
+  :config
+  (setq yas-snippet-dirs '("~/.emacs.d/snippets"))
+  (yas-global-mode 1))
 
 (use-package org
-  :demand t
-  :ensure org-plus-contrib
   :mode ("\\.org\\'" . org-mode)
+  :hook (org-mode . variable-pitch-mode)
   :config
-  ;; (require 'org-tempo)
+  (require 'org-tempo)
   ;; (require 'ob-latex)
   ;; (require 'ob-emacs-lisp)
-  (add-hook 'org-mode-hook 'turn-on-org-cdlatex)
-  (setq org-startup-indented         t     ; indent sections
-        org-src-tab-acts-natively    t     ; tab works as in any major mode
-        org-src-preserve-indentation t
-        org-log-into-drawer          t     ; wtf is this?
-        org-src-fontify-natively     t     ; highlight code
-        org-log-done                 'time ; add dates on completion of TODOs
-        org-support-shift-select     t     ; select holding down shift
-        org-startup-truncated        nil
-        org-directory                "~/Dropbox/org"
-        org-agenda-files             '("~/Dropbox/org/agenda")
-        org-ellipsis                 " ➙"
-        org-src-window-setup         'current-window
-        org-latex-pdf-process        (list "latexmk -f %f"))
+  (add-hook 'org-mode-hook     'turn-on-org-cdlatex)
+  (add-hook 'org-src-mode-hook 'turn-on-org-cdlatex) 
+ 
+  (setq org-list-allow-alphabetical      t
+        org-startup-indented             nil   ; indent sections
+        org-indent-indentation-per-level 0 
+        org-adapt-indentation            nil
+        org-src-tab-acts-natively        t     ; tab works as in any major mode
+        org-src-preserve-indentation     t
+        org-log-into-drawer              t     ; wtf is this?
+        org-src-fontify-natively         t     ; highlight code
+        org-log-done                     'time ; add dates on completion of
+                                               ; TODOs
+        org-support-shift-select         t     ; select holding down shift
+        org-startup-truncated            nil
+        org-directory                    "~/Dropbox/org"
+        org-agenda-files                 '("~/Dropbox/org/agenda")
+        org-ellipsis                     "⤵"
+        org-src-window-setup             'current-window
+        org-latex-pdf-process            (list "latexmk -f %f"))
+  
   (add-to-list 'org-structure-template-alist '("se" . "src emacs-lisp"))
   (general-unbind
     :keymaps 'org-mode-map
@@ -350,18 +406,22 @@
    :keymaps 'org-src-mode-map
    "C-c C-'" 'org-edit-src-exit))
 
+(use-package org-bullets
+  :hook (org-mode . org-bullets-mode))
+
 (use-package org-ref
   :after org
   :config
-  (setq reftex-default-bibliography '("~/Dropbox/org/bibliography/references.bib"))
+  (setq reftex-default-bibliography '("~/Dropbox/org/bibliography/references.bib")) ;; move this?
+
   ;; see org-ref for use of these variables
-  (setq org-ref-bibliography-notes "~/Dropbox/org/bibliography/notes.org"
+  (setq org-ref-bibliography-notes   "~/Dropbox/org/bibliography/notes.org"
         org-ref-default-bibliography '("~/Dropbox/org/bibliography/references.bib")
-        org-ref-pdf-directory "~/Dropbox/org/bibliography/bibtex-pdfs/"))
+        org-ref-pdf-directory        "~/Dropbox/org/bibliography/bibtex-pdfs/"))
 
 (use-package tex-site
-  :ensure auctex
-  :mode ("\\.tex\\'". LaTeX-mode)
+  :straight auctex
+  :mode ("\\.tex\\'" . LaTeX-mode)
   :hook
   (LaTeX-mode . reftex-mode)
   (LaTeX-mode . LaTeX-math-mode)
@@ -373,7 +433,7 @@
   
   (setq TeX-source-correlate-method 'synctex
         TeX-source-correlate        t
-        TeX-PDF-mode                t
+        ; TeX-PDF-mode                t
         TeX-auto-save               t
         TeX-save-query              nil
         TeX-parse-self              t
@@ -394,3 +454,16 @@
   :config
   (setq cdlatex-env-alist
         '(("equation*" "\\begin{equation*}\n?\n\\end{equation*}\n" nil))))
+
+(use-package company-auctex
+  :config
+  (company-auctex-init))
+
+(use-package company-math
+  :config
+  (add-to-list 'company-backends '(company-math-symbols-latex
+                                   company-latex-commands)))
+
+(use-package evil-tex
+  :hook
+  (LaTeX-mode . evil-tex))

@@ -631,7 +631,7 @@ https://github.com/jkitchin/org-ref
         org-ref-pdf-directory        "~/Dropbox/org/bibliography/bibtex-pdfs/"))
 #+end_src
 *** TODO helm removed
-Need to see if I can easily integrate this with ivy. Checkout ivy-bibtex and company-bibtex? Updage: ivy-bibtex doesn't even work... ffs
+Need to see if I can easily integrate this with ivy. Checkout ivy-bibtex and company-bibtex? Update: ivy-bibtex doesn't even work... ffs
 
 * Languages
 ** LaTeX
