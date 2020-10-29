@@ -20,12 +20,9 @@
 #+LATEX_HEADER: \usepackage{mdframed}
 #+LATEX_HEADER: \usepackage{mathtools}
 #+LATEX_HEADER: \usepackage{tikz-cd}
-#+LATEX_HEADER: \usepackage[style=apa6,backend=biber]{biblatex}
-#+LATEX_HEADER: \bibliography{referanser.bib}
-#+LATEX_HEADER: \AtEveryBibitem{\clearfield{note}}
-#+LATEX_HEADER: \AtEveryCitekey{\clearfield{note}}
-# bibliography:referanser.bib
-
+#+LATEX_HEADER: \usepackage[norsk]{babel}
+#+LATEX_HEADER: \usepackage{csquotes}
+#+LATEX_HEADER: \usepackage[natbibapa]{apacite}
 
 #+LATEX_HEADER: \usetheme{metropolis}
 #+LATEX_HEADER: \usefonttheme{professionalfonts}
@@ -46,4 +43,7 @@
   :PROPERTIES:
   :BEAMER_OPT: fragile,allowframebreaks
   :END:
-  \printbibliography[heading=none]
+  #+LATEX:\renewcommand{\section}[2]{}
+  bibliographystyle:apacite
+  bibliography:referanser.bib
+
